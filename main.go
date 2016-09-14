@@ -18,12 +18,22 @@ func PrintTree(node *TokenNode) {
       PrintTree(node.RightNode)
    }   
 }
-
-func test(exp string, expected_res int) {
+// Run test without using channels method
+func test0(exp string, expected_res int) {
     res, root := EvalExpression0(exp)
     fmt.Printf("Test: %v = %v\n", exp, res)
     if res != expected_res {
-        fmt.Println("Error: expected result=", expected_res)
+        fmt.Println("Error: expected result =", expected_res)
+        fmt.Print("Root: ")
+        PrintTree(root)
+    }
+}
+// Run test using channels method
+func test(exp string, expected_res int) {
+    res, root := EvalExpression(exp)
+    fmt.Printf("Test: %v = %v\n", exp, res)
+    if res != expected_res {
+        fmt.Println("Error: expected result =", expected_res)
         fmt.Print("Root: ")
         PrintTree(root)
     }
@@ -37,8 +47,15 @@ func main( ) {
       }
    }()
 
+   fmt.Println("**** Tests using channels")
    test("2 + 5", 7)
    test("2 + 5 * 2 * 2", 22)
    test("2 * 5", 10)
    test("2 * 5 + 4", 14)
+
+   fmt.Println("**** Tests without channels")
+   test0("2 + 5", 7)
+   test0("2 + 5 * 2 * 2", 22)
+   test0("2 * 5", 10)
+   test0("2 * 5 + 4 + 4", 18)
 }

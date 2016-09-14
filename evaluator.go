@@ -4,36 +4,20 @@ import (
    "strconv"
    "strings"
 )
-// Represents a tokens array
-type TokenArray struct {
-   NumTokens int;
-   Tokens [] Token
-}
-// Add a token into the tokens array
-func (ta *TokenArray) AddToken(isOperator bool, value int) {
-   if ta.NumTokens < len(ta.Tokens) {
-      ta.Tokens[ta.NumTokens] = Token { isOperator, value }
-      ta.NumTokens++
-   } else {
-      panic("Token array is full")
-   }
-}
-// Tokenise an expression into an tokens array
-func (ta *TokenArray) Tokenise(exp string) {
+// Tokenise an expression and pipe tokens to the given channel
+func Tokenise(exp string, ch (chan Token) ) {
    ops := "+-*/()"
    exp = strings.Replace(exp, " ", "", len(exp))
-   
-   ta.Tokens = make([] Token, len(exp))
-   ta.NumTokens = 0
-   
+   defer func() { close(ch) }()
+
    ts := 0 // Start of the next token
    for i := 0; i < len(exp); i++ {
       if strings.IndexByte(ops, exp[i]) >= 0 {
          if ts < i {
             n, _ := strconv.Atoi(exp[ts : i])
-            ta.AddToken(false, n)
+            ch <- Token { false, n }
          }
-         ta.AddToken(true, int(exp[i]))
+         ch <- Token { true, int(exp[i]) }
          ts = i + 1
       } else if '0' <= exp[i] && exp[i] <= '9' {
       // A digit, continue
@@ -43,19 +27,23 @@ func (ta *TokenArray) Tokenise(exp string) {
    }
    if ts < len(exp) {
       n, _ := strconv.Atoi(exp[ts : ])
-      ta.AddToken(false, n)
+      ch <- Token { false, n }
    }
 }
 // Build the binary tree from the tokens array
-func (ta *TokenArray) MakeBinaryTree( ) *TokenNode {
-   root := &TokenNode { ta.Tokens[0], nil, nil, nil }
+func MakeBinaryTree(ch (chan Token), ch_root (chan *TokenNode) ) {
+   defer func() { close(ch_root) }()    // Make sure the chan is always closed
+
+   tkn, ok := <- ch
+   if !ok { return }
+
+   root := &TokenNode { tkn, nil, nil, nil }
    if root.TheToken.IsOperator == true {
       panic("Error: first token of the expression cannot be an operator!")
    }
    lastNode := root
 
-   for i := 1; i < ta.NumTokens; i++ {
-      tkn := ta.Tokens[i]
+   for tkn = range ch {
       node := TokenNode { tkn, nil, nil, nil}
       if tkn.IsOperator == false {
          if lastNode.TheToken.IsOperator == false {
@@ -85,12 +73,22 @@ func (ta *TokenArray) MakeBinaryTree( ) *TokenNode {
       }
       lastNode = &node
    }
-   return root
+   ch_root <- root
 }
 // Evaluate an expression. This is the UI function
-func EvalExpression0(exp string) (int, *TokenNode) {
-    tokens := TokenArray { }
-    tokens.Tokenise(exp)
-    root := tokens.MakeBinaryTree()
-    return EvalTreeNode(root), root
+func EvalExpression(exp string) (int, *TokenNode) {
+    ch := make( chan Token, 10)         // Channel for tokens
+    ch_root := make(chan *TokenNode)    // Channel for the root of the binary tree
+
+    go MakeBinaryTree(ch, ch_root)  // Start the thread that receives and process tokens
+    // When all done, the root of the binary tree will be sent through ch_root
+
+    Tokenise(exp, ch)   // Tokenise the expression and send tokens to ch
+
+    root, ok := <- ch_root  // Wait for tree root from MakeBinaryTree thread
+    if ok {
+        return EvalTreeNode(root), root 
+    } else {
+        return 0, nil
+    }
 }
