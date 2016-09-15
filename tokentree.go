@@ -45,6 +45,9 @@ type TokenNode struct {
 func (tn *TokenNode) Priority() byte {
     return tn.TheToken.Priority()
 }
+func (tn *TokenNode) IsLeftBracket() bool {
+    return tn.TheToken.Value == '('
+}
 // Recursively evaluate tree node
 func EvalTreeNode(node *TokenNode) int {
    if node.TheToken.IsOperator == false {

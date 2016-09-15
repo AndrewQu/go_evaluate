@@ -38,7 +38,7 @@ func MakeBinaryTree(ch (chan Token), ch_root (chan *TokenNode) ) {
    if !ok { return }
 
    root := &TokenNode { tkn, nil, nil, nil }
-   if root.TheToken.IsOperator == true {
+   if root.TheToken.IsOperator == true && root.IsLeftBracket() == false {
       panic("Error: first token of the expression cannot be an operator!")
    }
    lastNode := root
@@ -46,32 +46,60 @@ func MakeBinaryTree(ch (chan Token), ch_root (chan *TokenNode) ) {
    for tkn = range ch {
       node := TokenNode { tkn, nil, nil, nil}
       if tkn.IsOperator == false {
-         if lastNode.TheToken.IsOperator == false {
-            panic("Error: Near token \"" + string(tkn.Operand()) + "\"")
-         }
-         lastNode.RightNode = &node
-         node.Parent = lastNode
-      } else {	// An operator, search for the node to replace
-          p := node.Priority()
-          replNode := lastNode
-          for ; replNode.Parent != nil; {
-              if replNode.Parent.Priority() <= p {
-                  break
-              } else {
-                  replNode = replNode.Parent
-              }
+          if lastNode.TheToken.IsOperator == false {
+             panic("Error: Near token \"" + string(tkn.Operand()) + "\"")
           }
-          // Replace the node
-          if replNode.Parent == nil {
-              root = &node
+          if lastNode.IsLeftBracket() {
+              lastNode.LeftNode = &node
           } else {
-              replNode.Parent.RightNode = &node
-              node.Parent = replNode.Parent
+              lastNode.RightNode = &node
           }
-          node.LeftNode = replNode
-          replNode.Parent = &node
+          node.Parent = lastNode
+          lastNode = &node
+      } else {	// An operator, search for the node to replace
+          op := tkn.Operator()
+          if op == '(' {
+              lastNode.RightNode = &node
+              node.Parent = lastNode
+              lastNode = &node
+          } else if op == ')' {
+              lbrktNode := lastNode   // Find the left bracket
+              for ; lbrktNode.Parent != nil; {
+                  if lbrktNode.IsLeftBracket() {
+                      break
+                  }
+                  lbrktNode = lbrktNode.Parent
+              }
+              if lbrktNode.IsLeftBracket() == false {
+                  panic("Inbalanced left bracket.")
+              }
+              v := EvalTreeNode(lbrktNode.RightNode)
+              lbrktNode.TheToken = Token { false, v }
+              lbrktNode.LeftNode = nil
+              lbrktNode.RightNode = nil
+              lastNode = lbrktNode
+          } else { // + - * /
+              p := node.Priority()
+              replNode := lastNode
+              for ; replNode.Parent != nil && !replNode.Parent.IsLeftBracket(); {
+                  if replNode.Parent.Priority() <= p {
+                      break
+                  } else {
+                      replNode = replNode.Parent
+                  }
+              }
+              // Replace the node
+              if replNode.Parent == nil {
+                  root = &node
+              } else {
+                  replNode.Parent.RightNode = &node
+                  node.Parent = replNode.Parent
+              }
+              node.LeftNode = replNode
+              replNode.Parent = &node
+              lastNode = &node
+          }
       }
-      lastNode = &node
    }
    ch_root <- root
 }

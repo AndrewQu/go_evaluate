@@ -52,8 +52,12 @@ func main( ) {
    test("2 + 5 * 2 * 2", 22)
    test("2 * 5", 10)
    test("2 * 5 + 4", 14)
+   test("2 * (5 + 4)", 18)
+   test("2 * (5 + 4) + 3 * 4", 30)
+   test("(2 + 3) * 5", 25)
+   test("((3 + 5) * 2 + 3) * 5", 95)
 
-   fmt.Println("**** Tests without channels")
+   fmt.Println("\n**** Tests without channels")
    test0("2 + 5", 7)
    test0("2 + 5 * 2 * 2", 22)
    test0("2 * 5", 10)
